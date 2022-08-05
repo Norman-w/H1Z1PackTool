@@ -69,6 +69,37 @@ public class Packer
         return packFile;
     }
 
+    public PackFile LoadAssetsIntoPackFile(string assetsDir)
+    {
+        if (!Directory.Exists(assetsDir))
+        {
+            Console.WriteLine("资源文件夹{0}不存在", assetsDir);
+            return null;
+        }
+        var assetsFiles = Directory.GetFiles(assetsDir, "*.*");
+        if (assetsFiles.Length<1)
+        {
+            Console.WriteLine("{0}目录中不存在资源文件", assetsDir);
+            return null;
+        }
+
+        PackFile packFile = new PackFile();
+        for (int i = 0; i < assetsFiles.Length; i++)
+        {
+            var currentAssetPath = assetsFiles[i];
+            Asset asset = new Asset();
+            asset.Name = Path.GetFileName(currentAssetPath);
+            var currentAssetFileContent = File.ReadAllBytes(currentAssetPath);
+            asset.FileContent = currentAssetFileContent;
+            asset.Length = Convert.ToUInt32(currentAssetFileContent.Length);
+            CRC32Cls crc32Cls = new CRC32Cls();
+            asset.CRC32 = Convert.ToUInt32(crc32Cls.GetCRC32Str(currentAssetFileContent));
+            //做到这里只有offset没有指定.存储到pack文件时指定offset即可
+        }
+        packFile.PackFileFullName = assetsDir + ".pack";
+        return packFile;
+    }
+
     public void UnpackAssetsFromPack(PackFile packFile)
     {
         foreach (var current in packFile.Assets)
@@ -96,6 +127,8 @@ public class Packer
             File.WriteAllBytes(assetFileFullPath, current.Value.FileContent);
         }
     }
+
+
 
     private int ReadUint32BE(BinaryReader br)
     {

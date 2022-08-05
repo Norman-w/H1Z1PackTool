@@ -3,8 +3,12 @@
 using H1Z1PackTool;
 
 Packer packer = new Packer();
-var pack = packer.LoadPackFile("/Users/coolking/Desktop/Assets_256.pack");
-packer.UnpackAssetsFromPack(pack);
+string srcPackFilePath = "/Volumes/BOOTCAMP/h1z1/Assets/Assets_000.pack";
+// var pack = packer.LoadPackFile(srcPackFilePath);
+// packer.UnpackAssetsFromPack(pack);
+
+//从资源文件夹中加载出的包信息,不包含每一个资源的offset信息,也不包含pack文件头信息
+var fromAssetsDirLoadedPackInfo = packer.LoadAssetsIntoPackFile(srcPackFilePath.Substring(0,srcPackFilePath.Length-5));
 
 #region Finish
 
