@@ -36,7 +36,6 @@ public class Packer
         FileStream fs = new FileStream(packFilePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
         BinaryReader br = new BinaryReader(fs);
         int nextOffset = 0;
-        int offset = 0;
         do
         {
             nextOffset = ReadUint32BE(br);
@@ -51,11 +50,52 @@ public class Packer
                 asset.CRC32 = ReadUint32UBE(br);
                 packFile.Assets.Add(asset.Name, asset);
             }
+
+            foreach (var current in packFile.Assets)
+            {
+                fs.Seek(current.Value.Offset, SeekOrigin.Begin);
+                var assetFileContent = new List<byte>();
+                for (int i = 0; i < current.Value.Length; i++)
+                {
+                    assetFileContent.Add((byte)fs.ReadByte());
+                }
+
+                current.Value.FileContent = assetFileContent.ToArray();
+            }
+
+            fs.Seek(nextOffset, SeekOrigin.Begin);
         } while (nextOffset != 0);
 
         return packFile;
     }
 
+    public void UnpackAssetsFromPack(PackFile packFile)
+    {
+        foreach (var current in packFile.Assets)
+        {
+            #region 校验CRC32
+
+            // var crc32Checked = CRC32.GetCRC32(current.Value.FileContent);
+            CRC32Cls crc32Cls = new CRC32Cls();
+
+            var crc32Checked = crc32Cls.GetCRC32Str(current.Value.FileContent);
+
+            if (current.Value.CRC32 != crc32Checked)
+            {
+                Console.WriteLine("资源文件{0}的CRC32校验不正确",current.Value.Name);
+            }
+
+            #endregion
+
+            var assetFileFullDir = Path.Combine(packFile.PackFileDir, packFile.PackFileName);
+            if (!Directory.Exists(assetFileFullDir))
+            {
+                Directory.CreateDirectory(assetFileFullDir);
+            }
+            var assetFileFullPath = Path.Combine(assetFileFullDir, current.Value.Name);
+            File.WriteAllBytes(assetFileFullPath, current.Value.FileContent);
+        }
+    }
 
     private int ReadUint32BE(BinaryReader br)
     {
