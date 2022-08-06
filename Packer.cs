@@ -95,9 +95,94 @@ public class Packer
             CRC32Cls crc32Cls = new CRC32Cls();
             asset.CRC32 = Convert.ToUInt32(crc32Cls.GetCRC32Str(currentAssetFileContent));
             //做到这里只有offset没有指定.存储到pack文件时指定offset即可
+
+            packFile.Assets.Add(asset.Name, asset);
         }
         packFile.PackFileFullName = assetsDir + ".pack";
         return packFile;
+    }
+
+    public void SavePackFile(PackFile packFile)
+    {
+        Dictionary<string, int> assetOffsetWritePosDic = new Dictionary<string, int>();
+        var headerBytes = BuildPackHeader(packFile,ref assetOffsetWritePosDic);
+
+        //根据header的长度计算一下要把资源放在什么位置.如果不需要偏移对齐,这个数字直接等于header的bytes length
+        int howMuchBytesAlign = 8192;
+        //实际使用的header长度,使用了对齐的方式.如果不足8192,就向上取整对齐.
+        int realUseHeaderLength = (int) Math.Ceiling(headerBytes.Length * 1f / howMuchBytesAlign) * howMuchBytesAlign;
+        //如果文件头不够数,加入
+        var needAddCount = howMuchBytesAlign - headerBytes.Length;
+        var headersBytesList = new List<byte>(headerBytes);
+        for (int i = 0; i < needAddCount; i++)
+        {
+            headersBytesList.Add(0);
+        }
+        //现在头应该是8192对齐的了.然后开始计算每个文件的偏移
+
+        uint currentAssetFileOffset = Convert.ToUInt32(realUseHeaderLength);
+        foreach (var current in packFile.Assets)
+        {
+            var asset = current.Value;
+            asset.Offset = currentAssetFileOffset;
+            currentAssetFileOffset += asset.Length;
+            //存入到文件头中的原来保存偏移的那里去(不是直接存储到文件中)
+            var assetOffsetInfoPosInHeader = assetOffsetWritePosDic[current.Key];
+            var assetOffsetBytes = GetUint32BE(asset.Offset);
+            for (int i = 0; i < 4; i++)
+            {
+                headersBytesList[assetOffsetInfoPosInHeader + i] = assetOffsetBytes[i];
+            }
+        }
+
+        var packFileBytesList = new List<byte>();
+        //先加入文件名字的头部
+        packFileBytesList.AddRange(headersBytesList);
+        packFile.Header = headersBytesList.ToArray();
+        //再加入每一个文件,没有做文件对齐.
+        foreach (var asset in packFile.Assets)
+        {
+            packFileBytesList.AddRange(asset.Value.FileContent);
+        }
+
+        File.WriteAllBytes(packFile.PackFileFullName, packFileBytesList.ToArray());
+    }
+
+    /// <summary>
+    ///
+    /// </summary>
+    /// <param name="packFile"></param>
+    /// <param name="assetOffsetWritePosDic">资源的名字所对应的偏移位置,此位置开始的4个字节在写入文件之前先计算好偏移,然后写在那个位置.</param>
+    /// <returns></returns>
+    private byte[] BuildPackHeader(PackFile packFile, ref Dictionary<string, int> assetOffsetWritePosDic)
+    {
+        List<byte> headerContentByteList = new List<byte>();
+        //写入包偏移
+        headerContentByteList.AddRange(GetUint32BE(0));
+        //写入包内资源总数
+        headerContentByteList.AddRange(GetUint32BE(Convert.ToUInt32(packFile.AssetCount)));
+        //依次写入文件名信息
+
+
+        foreach (var current in packFile.Assets)
+        {
+            var asset = current.Value;
+            //文件名的长度
+            headerContentByteList.AddRange(GetUint32BE(Convert.ToUInt32(asset.Name.Length)));
+            //文件名
+            var assetsNameBytes = Encoding.UTF8.GetBytes(asset.Name);
+            headerContentByteList.AddRange(assetsNameBytes);
+            //偏移的存在位置
+            assetOffsetWritePosDic.Add(current.Key, headerContentByteList.Count);
+            //文件偏移位置
+            headerContentByteList.AddRange(new byte[]{0,0,0,0});
+            //文件长度
+            headerContentByteList.AddRange(GetUint32BE(asset.Length));
+            //文件的crc
+            headerContentByteList.AddRange(GetUint32BE(asset.CRC32));
+        }
+
+        return headerContentByteList.ToArray();
     }
 
     public void UnpackAssetsFromPack(PackFile packFile)
@@ -134,6 +219,38 @@ public class Packer
     {
         var bytes = br.ReadBytes(4).Reverse().ToArray();
         return BitConverter.ToInt32(bytes);
+    }
+
+    /// <summary>
+    /// 返回4字节长度的uint转换为出的byte数组
+    /// </summary>
+    /// <param name="value"></param>
+    /// <returns></returns>
+    private byte[] GetUint32BE(uint value)
+    {
+        var ret = new byte[4];
+        var str = value.ToString("X").PadLeft(8,'0');
+        for (int i = 0; i < 4; i++)
+        {
+            ret[i] = Convert.ToByte(str.Substring(i * 2, 2),16);
+        }
+        return ret;
+    }
+    /// <summary>
+    /// 16进制字符串转byte数组
+    /// </summary>
+    /// <param name="hexString">16进制字符</param>
+    /// <returns></returns>
+    public static byte[] BytesToHexString(string hexString)
+    {
+        // 将16进制秘钥转成字节数组
+        byte[] bytes = new byte[hexString.Length / 2];
+        for (var x = 0; x < bytes.Length; x++)
+        {
+            var i = Convert.ToInt32(hexString.Substring(x * 2, 2), 16);
+            bytes[x] = (byte)i;
+        }
+        return bytes;
     }
     private uint ReadUint32UBE(BinaryReader br)
     {
