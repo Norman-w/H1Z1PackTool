@@ -69,6 +69,11 @@ public class Packer
         return packFile;
     }
 
+    /// <summary>
+    /// 从文件夹加载所有的资源到包对象中.
+    /// </summary>
+    /// <param name="assetsDir"></param>
+    /// <returns></returns>
     public PackFile LoadAssetsIntoPackFile(string assetsDir)
     {
         if (!Directory.Exists(assetsDir))
@@ -102,6 +107,10 @@ public class Packer
         return packFile;
     }
 
+    /// <summary>
+    /// 将包对象存储到磁盘.
+    /// </summary>
+    /// <param name="packFile"></param>
     public void SavePackFile(PackFile packFile)
     {
         Dictionary<string, int> assetOffsetWritePosDic = new Dictionary<string, int>();
@@ -185,6 +194,10 @@ public class Packer
         return headerContentByteList.ToArray();
     }
 
+    /// <summary>
+    /// 把包内的所有的资源解压出来
+    /// </summary>
+    /// <param name="packFile"></param>
     public void UnpackAssetsFromPack(PackFile packFile)
     {
         foreach (var current in packFile.Assets)
