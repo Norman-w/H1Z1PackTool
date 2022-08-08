@@ -38,16 +38,16 @@ public class Packer
         int nextOffset = 0;
         do
         {
-            nextOffset = ReadUint32BE(br);
-            int assetsCount = ReadUint32BE(br);
+            nextOffset = ReadInt32BE(br);
+            int assetsCount = ReadInt32BE(br);
             for (int i = 0; i < assetsCount; i++)
             {
                 Asset asset = new Asset();
-                var nameLength = ReadUint32UBE(br);
+                var nameLength = ReadUint32BE(br);
                 asset.Name = ReadString(br, (int)nameLength);
-                asset.Offset = ReadUint32UBE(br);
-                asset.Length = ReadUint32UBE(br);
-                asset.CRC32 = ReadUint32UBE(br);
+                asset.Offset = ReadUint32BE(br);
+                asset.Length = ReadUint32BE(br);
+                asset.CRC32 = ReadUint32BE(br);
                 packFile.Assets.Add(asset.Name, asset);
             }
 
@@ -228,10 +228,8 @@ public class Packer
 
 
 
-    private int ReadUint32BE(BinaryReader br)
+    private int ReadInt32BE(BinaryReader br)
     {
-        // var bytes = br.ReadBytes(4).Reverse().ToArray();
-        // return BitConverter.ToInt32(bytes);
         var bytes = br.ReadBytes(4);
         Array.Reverse(bytes);
         return BitConverter.ToInt32(bytes,0);
@@ -268,10 +266,11 @@ public class Packer
         }
         return bytes;
     }
-    private uint ReadUint32UBE(BinaryReader br)
+    private uint ReadUint32BE(BinaryReader br)
     {
-        var bytes = br.ReadBytes(4).Reverse().ToArray();
-        return BitConverter.ToUInt32(bytes);
+        var bytes = br.ReadBytes(4);
+        Array.Reverse(bytes);
+        return BitConverter.ToUInt32(bytes,0);
     }
 
     private string ReadString(BinaryReader br, int length)
