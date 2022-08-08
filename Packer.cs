@@ -230,8 +230,11 @@ public class Packer
 
     private int ReadUint32BE(BinaryReader br)
     {
-        var bytes = br.ReadBytes(4).Reverse().ToArray();
-        return BitConverter.ToInt32(bytes);
+        // var bytes = br.ReadBytes(4).Reverse().ToArray();
+        // return BitConverter.ToInt32(bytes);
+        var bytes = br.ReadBytes(4);
+        Array.Reverse(bytes);
+        return BitConverter.ToInt32(bytes,0);
     }
 
     /// <summary>
